@@ -13,6 +13,7 @@ type Config struct {
 	}
 	BFFServer struct {
 		Port string
+		Host string
 	}
 	KafkaService struct {
 		Port    string
@@ -33,8 +34,10 @@ func LoadConfig() (*Config, error) {
 		},
 		BFFServer: struct {
 			Port string
+			Host string
 		}{
 			Port: getEnvOrDefault("SERVER_PORT", "8080"),
+			Host: getEnvOrDefault("SERVER_HOST", "bff-service"),
 		},
 		KafkaService: struct {
 			Port    string

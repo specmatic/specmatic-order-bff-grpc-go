@@ -1,6 +1,6 @@
 ## Architecture
 
-![Specmatic gRPC Support Architecture](/assets/SpecmaticGRPCSupport.gif)
+![Specmatic gRPC Support Architecture](assets/SpecmaticGRPCSupport.gif)
 
 ## Setup
 
@@ -24,9 +24,35 @@ git submodule update --init --recursive --remote
 git config submodule.recurse true
 ```
 
-### Contract Testing BFF using specmatic-grpc docker image (preferred) with test containers
+## Contract Testing BFF using specmatic-grpc docker image 
+
+### With test containers (preferred) 
 
 ```shell
 go mod tidy
 go test contract_test.go -v -count=1 
+```
+
+### Running BFF Locally
+
+#### Install Protocol Buffers Gen & BufBuild
+
+```shell
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && \
+go install github.com/bufbuild/buf/cmd/buf@latest
+```
+
+#### Make the project
+
+```shell
+make clean
+make all
+```
+
+#### Run the contract tests
+
+```shell
+go mod tidy
+go test contract_local_test.go -v -count=1
 ```

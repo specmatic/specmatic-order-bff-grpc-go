@@ -21,8 +21,6 @@ func SendProductMessages(products []*bff_pb.Product) error {
 		return fmt.Errorf("error loading config: %w", err)
 	}
 
-	fmt.Println("Kafka host na dport ====== : ", cfg.KafkaService.Host+":"+cfg.KafkaService.Port)
-
 	// Create a new Kafka writer with more configuration options
 	w := kafka.NewWriter(kafka.WriterConfig{
 		Brokers:      []string{cfg.KafkaService.Host + ":" + cfg.KafkaService.Port},

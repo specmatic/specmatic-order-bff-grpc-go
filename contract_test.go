@@ -10,6 +10,14 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 )
 
+/*
+Makes use of TestContainers to run the following:
+
+* The Domain service (specmatic-grpc), virtualizing based on proto files.
+* Kafka mock, (specmatic-kafka), to listen on product-queries.
+* This BFF, system under test.
+* The Test service (specmatic-grpc), to run comprehensive generative tests based on proto files.
+*/
 func TestContract(t *testing.T) {
 	env := setUpEnv(t)
 

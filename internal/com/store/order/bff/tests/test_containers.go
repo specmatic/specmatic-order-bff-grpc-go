@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-resty/resty/v2"
 	"github.com/testcontainers/testcontainers-go"
@@ -42,7 +43,7 @@ func StartDomainService(env *TestEnvironment) (testcontainers.Container, string,
 			env.DockerNetwork.Name,
 		},
 		NetworkAliases: map[string][]string{
-			env.DockerNetwork.Name: {"order-api-mock"},
+			env.DockerNetwork.Name: {env.Config.Backend.Host},
 		},
 		WaitingFor: wait.ForLog("Stub server is running"),
 	}
@@ -75,6 +76,16 @@ func StartKafkaMock(env *TestEnvironment) (testcontainers.Container, string, err
 		return nil, "", fmt.Errorf("invalid port number: %w", err)
 	}
 
+	bindPorts := func(hostConfig *container.HostConfig) {
+		hostConfig.PortBindings = nat.PortMap{
+			port: {
+				{
+					HostPort: env.Config.KafkaService.Port,
+				},
+			},
+		}
+	}
+
 	req := testcontainers.ContainerRequest{
 		Name:         "specmatic-kafka",
 		Image:        "znsio/specmatic-kafka",
@@ -83,17 +94,18 @@ func StartKafkaMock(env *TestEnvironment) (testcontainers.Container, string, err
 			env.DockerNetwork.Name,
 		},
 		NetworkAliases: map[string][]string{
-			env.DockerNetwork.Name: {"specmatic-kafka"},
+			env.DockerNetwork.Name: {env.Config.KafkaService.Host},
 		},
 		Env: map[string]string{
-			"KAFKA_EXTERNAL_HOST": env.Config.KafkaService.Host,
-			"KAFKA_EXTERNAL_PORT": env.Config.KafkaService.Port,
+			"SPECMATIC_KAFKA_HOST": env.Config.KafkaService.Host,
+			"SPECMATIC_KAFKA_PORT": env.Config.KafkaService.Port,
 		},
 		Cmd: []string{"virtualize", "--mock-server-api-port=" + env.Config.KafkaService.ApiPort},
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
 		),
-		WaitingFor: wait.ForLog("Listening on topics: (product-queries)").WithStartupTimeout(2 * time.Minute),
+		HostConfigModifier: bindPorts,
+		WaitingFor:         wait.ForLog("Listening on topics: (product-queries)").WithStartupTimeout(2 * time.Minute),
 	}
 
 	kafkaC, err := testcontainers.GenericContainer(env.Ctx, testcontainers.GenericContainerRequest{
@@ -147,15 +159,15 @@ func StartBFFService(t *testing.T, env *TestEnvironment) (testcontainers.Contain
 		},
 		Env: map[string]string{
 			"DOMAIN_SERVER_PORT": env.Config.Backend.Port,
-			"DOMAIN_SERVER_HOST": "order-api-mock",
+			"DOMAIN_SERVER_HOST": env.Config.Backend.Host,
 			"KAFKA_PORT":         env.Config.KafkaService.Port,
-			"KAFKA_HOST":         "specmatic-kafka",
+			"KAFKA_HOST":         env.Config.KafkaService.Host,
 		},
 		Networks: []string{
 			env.DockerNetwork.Name,
 		},
 		NetworkAliases: map[string][]string{
-			env.DockerNetwork.Name: {"bff-service"},
+			env.DockerNetwork.Name: {env.Config.BFFServer.Host},
 		},
 		ExposedPorts: []string{env.Config.BFFServer.Port + "/tcp"},
 		WaitingFor:   wait.ForLog("Starting gRPC server"),
@@ -184,7 +196,6 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 	}
 
 	bffPortInt, err := strconv.Atoi(env.Config.BFFServer.Port)
-	// bffPortInt, err := strconv.Atoi(env.bffServiceDynamicPort)
 	if err != nil {
 		return "", fmt.Errorf("invalid port number: %w", err)
 	}
@@ -194,7 +205,7 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 		Env: map[string]string{
 			"SPECMATIC_GENERATIVE_TESTS": "true",
 		},
-		Cmd: []string{"test", fmt.Sprintf("--port=%d", bffPortInt), "--host=bff-service"},
+		Cmd: []string{"test", fmt.Sprintf("--port=%d", bffPortInt), "--host=" + env.Config.BFFServer.Host},
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
 		),

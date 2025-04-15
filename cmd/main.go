@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 
@@ -21,8 +20,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
-
-	fmt.Println("port : " + cfg.Backend.Port)
 
 	backendServerAddress := cfg.Backend.Host + ":" + cfg.Backend.Port
 
