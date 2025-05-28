@@ -9,7 +9,7 @@
 1. Clone the repository
 
 ```shell
-git clone https://github.com/znsio/specmatic-order-bff-grpc-go
+git clone https://github.com/specmatic/specmatic-order-bff-grpc-go
 ```
 
 2. Initialize and update the `proto_files` submodule

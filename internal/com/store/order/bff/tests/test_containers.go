@@ -18,7 +18,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-var specmaticGrpcImage = "znsio/specmatic-grpc"
+var specmaticGrpcImage = "specmatic/specmatic-grpc"
 
 func StartDomainService(env *TestEnvironment) (testcontainers.Container, string, error) {
 	pwd, err := os.Getwd()
@@ -77,7 +77,7 @@ func StartKafkaMock(env *TestEnvironment) (testcontainers.Container, string, err
 
 	req := testcontainers.ContainerRequest{
 		Name:         "specmatic-kafka",
-		Image:        "znsio/specmatic-kafka",
+		Image:        "specmatic/specmatic-kafka",
 		ExposedPorts: []string{port.Port() + "/tcp", env.Config.KafkaService.ApiPort + "/tcp"},
 		Networks: []string{
 			env.DockerNetwork.Name,

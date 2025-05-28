@@ -1,5 +1,5 @@
 version: v1beta1
-name: buf.build/znsio/specmatic-order-bff-grpc-go
+name: buf.build/specmatic/specmatic-order-bff-grpc-go
 deps:
   - buf.build/bufbuild/protovalidate
 build:
