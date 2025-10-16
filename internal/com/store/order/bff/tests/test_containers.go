@@ -18,7 +18,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-var specmaticGrpcImage = "znsio/specmatic-grpc"
+var specmaticGrpcImage = "specmatic/specmatic-grpc"
 
 func StartDomainService(env *TestEnvironment) (testcontainers.Container, string, error) {
 	pwd, err := os.Getwd()
@@ -77,7 +77,7 @@ func StartKafkaMock(env *TestEnvironment) (testcontainers.Container, string, err
 
 	req := testcontainers.ContainerRequest{
 		Name:         "specmatic-kafka",
-		Image:        "znsio/specmatic-kafka",
+		Image:        "specmatic/specmatic-kafka",
 		ExposedPorts: []string{port.Port() + "/tcp", env.Config.KafkaService.ApiPort + "/tcp"},
 		Networks: []string{
 			env.DockerNetwork.Name,
@@ -88,12 +88,13 @@ func StartKafkaMock(env *TestEnvironment) (testcontainers.Container, string, err
 		Env: map[string]string{
 			"KAFKA_EXTERNAL_HOST": env.Config.KafkaService.Host,
 			"KAFKA_EXTERNAL_PORT": env.Config.KafkaService.Port,
+			"API_SERVER_PORT": env.Config.KafkaService.ApiPort,
 		},
-		Cmd: []string{"virtualize", "--mock-server-api-port=" + env.Config.KafkaService.ApiPort},
+		Cmd: []string{"virtualize"},
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
 		),
-		WaitingFor: wait.ForLog("Listening on topics: (product-queries)").WithStartupTimeout(2 * time.Minute),
+		WaitingFor: wait.ForLog("KafkaMock has started").WithStartupTimeout(2 * time.Minute),
 	}
 
 	kafkaC, err := testcontainers.GenericContainer(env.Ctx, testcontainers.GenericContainerRequest{
@@ -131,19 +132,17 @@ func StartKafkaMock(env *TestEnvironment) (testcontainers.Container, string, err
 }
 
 func StartBFFService(t *testing.T, env *TestEnvironment) (testcontainers.Container, string, error) {
-
 	port, err := nat.NewPort("tcp", env.Config.BFFServer.Port)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid port number: %w", err)
 	}
-
-	dockerfilePath := "Dockerfile"
-	contextPath := "."
-
+	
 	req := testcontainers.ContainerRequest{
+		Name: "specmatic-order-bff-grpc-go",
 		FromDockerfile: testcontainers.FromDockerfile{
-			Context:    contextPath,
-			Dockerfile: dockerfilePath,
+			Context:    ".",
+			Dockerfile: "Dockerfile",
+			PrintBuildLog: true,
 		},
 		Env: map[string]string{
 			"DOMAIN_SERVER_PORT": env.Config.Backend.Port,
@@ -160,7 +159,7 @@ func StartBFFService(t *testing.T, env *TestEnvironment) (testcontainers.Contain
 		ExposedPorts: []string{env.Config.BFFServer.Port + "/tcp"},
 		WaitingFor:   wait.ForLog("Starting gRPC server"),
 	}
-
+	
 	bffContainer, err := testcontainers.GenericContainer(env.Ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
@@ -168,12 +167,12 @@ func StartBFFService(t *testing.T, env *TestEnvironment) (testcontainers.Contain
 	if err != nil {
 		return nil, "", err
 	}
-
+	
 	bffPort, err := bffContainer.MappedPort(env.Ctx, port)
 	if err != nil {
 		return nil, "", err
 	}
-
+	
 	return bffContainer, bffPort.Port(), nil
 }
 
@@ -231,10 +230,16 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 
 func SetKafkaExpectations(env *TestEnvironment) error {
 	client := resty.New()
-
+	
+	body := fmt.Sprintf(`{
+			"expectations": [
+				{ "topic": "product-queries", "count": %d }
+			]
+		}`, env.ExpectedMessageCount)
+	
 	_, err := client.R().
 		SetHeader("Content-Type", "application/json").
-		SetBody(fmt.Sprintf(`[{"topic": "product-queries", "count": %d}]`, env.ExpectedMessageCount)).
+		SetBody(body).
 		Post(fmt.Sprintf("http://%s:%s/_expectations", env.KafkaAPIHost, env.KafkaDynamicAPIPort))
 
 	return err
@@ -242,19 +247,20 @@ func SetKafkaExpectations(env *TestEnvironment) error {
 
 func VerifyKafkaExpectations(env *TestEnvironment) error {
 	client := resty.New()
-
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
-		Post(fmt.Sprintf("http://%s:%s/_expectations/verifications", env.KafkaAPIHost, env.KafkaDynamicAPIPort))
-
+		Get(fmt.Sprintf("http://%s:%s/_expectations/verification_status", env.KafkaAPIHost, env.KafkaDynamicAPIPort))
 	if err != nil {
 		return err
 	}
-
+	
+	// Print the response body for debugging
+	fmt.Println("Response body:", string(resp.Body()))
+	
 	if !gjson.GetBytes(resp.Body(), "success").Bool() {
-		return fmt.Errorf("Kafka mock verification failed: %v", gjson.GetBytes(resp.Body(), "errors").Array())
+		errors := gjson.GetBytes(resp.Body(), "errors").Array()
+		return fmt.Errorf("Kafka mock verification failed: %v", errors)
 	}
-
 	fmt.Println("Kafka mock expectations were met successfully.")
 	return nil
 }

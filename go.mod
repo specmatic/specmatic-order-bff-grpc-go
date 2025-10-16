@@ -3,7 +3,6 @@ module specmatic-order-bff-grpc-go
 go 1.22
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.34.2-20240508200655-46a4cf4ba109.2
 	github.com/bufbuild/protovalidate-go v0.6.2
 	github.com/docker/go-connections v0.5.0
 	github.com/go-resty/resty/v2 v2.14.0
@@ -16,6 +15,7 @@ require (
 )
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.34.2-20240508200655-46a4cf4ba109.2 // indirect
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect

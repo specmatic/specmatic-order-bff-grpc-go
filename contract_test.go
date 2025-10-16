@@ -32,7 +32,7 @@ func setUpEnv(t *testing.T) *tests.TestEnvironment {
 	return &tests.TestEnvironment{
 		Ctx:                  context.Background(),
 		Config:               config,
-		ExpectedMessageCount: 10,
+		ExpectedMessageCount: 15,
 	}
 }
 
