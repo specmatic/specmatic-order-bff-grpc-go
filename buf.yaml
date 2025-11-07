@@ -4,4 +4,4 @@ deps:
   - buf.build/bufbuild/protovalidate
 build:
   roots:
-    - proto_files/io
+    - proto_files/io/specmatic/examples/store/grpc

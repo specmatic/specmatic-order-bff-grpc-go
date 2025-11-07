@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 	"specmatic-order-bff-grpc-go/internal/com/store/order/bff/services"
-	bff_pb "specmatic-order-bff-grpc-go/pkg/api/io/specmatic/examples/store/grpc"
+	bff_pb "specmatic-order-bff-grpc-go/pkg/api/order_bff"
 
 	"specmatic-order-bff-grpc-go/internal/com/store/order/bff/utils"
 )

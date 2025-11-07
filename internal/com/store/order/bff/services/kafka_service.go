@@ -10,7 +10,7 @@ import (
 
 	"specmatic-order-bff-grpc-go/internal/com/store/order/bff/config"
 	"specmatic-order-bff-grpc-go/internal/com/store/order/bff/models"
-	bff_pb "specmatic-order-bff-grpc-go/pkg/api/io/specmatic/examples/store/grpc"
+	bff_pb "specmatic-order-bff-grpc-go/pkg/api/order_bff"
 
 	"github.com/segmentio/kafka-go"
 )

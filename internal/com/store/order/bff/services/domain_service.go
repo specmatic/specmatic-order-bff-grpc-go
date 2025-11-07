@@ -3,8 +3,8 @@ package services
 import (
 	"context"
 	"fmt"
-	bff_pb "specmatic-order-bff-grpc-go/pkg/api/io/specmatic/examples/store/grpc"
-	domain_pb "specmatic-order-bff-grpc-go/pkg/api/io/specmatic/examples/store/grpc/order_api"
+	bff_pb "specmatic-order-bff-grpc-go/pkg/api/order_bff"
+	domain_pb "specmatic-order-bff-grpc-go/pkg/api/order_api"
 
 	"google.golang.org/grpc"
 )
