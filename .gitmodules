@@ -1,4 +1,3 @@
 [submodule "proto_files"]
 	path = proto_files
-	url = https://github.com/znsio/specmatic-order-contracts.git
-	branch = grpc_go
+	url = https://github.com/specmatic/specmatic-order-contracts.git

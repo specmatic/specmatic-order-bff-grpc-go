@@ -28,5 +28,5 @@ git config submodule.recurse true
 
 ```shell
 go mod tidy
-go test contract_test.go -v -count=1 
+go test contract_test.go -v -count=1
 ```
