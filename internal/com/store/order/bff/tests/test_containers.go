@@ -34,7 +34,7 @@ func StartDomainService(env *TestEnvironment) (testcontainers.Container, string,
 	req := testcontainers.ContainerRequest{
 		Image:        specmaticGrpcImage,
 		ExposedPorts: []string{port.Port() + "/tcp"},
-		Cmd:          []string{"stub"},
+		Cmd:          []string{"stub", "--import-path=../"},
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
 		),
@@ -198,7 +198,7 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 		Env: map[string]string{
 			"SPECMATIC_GENERATIVE_TESTS": "true",
 		},
-		Cmd: []string{"test", fmt.Sprintf("--port=%d", bffPortInt), "--host=bff-service"},
+		Cmd: []string{"test", fmt.Sprintf("--port=%d", bffPortInt), "--host=bff-service", "--import-path=../"},
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
 		),

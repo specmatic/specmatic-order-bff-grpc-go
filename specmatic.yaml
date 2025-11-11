@@ -3,7 +3,7 @@ contracts:
   - git:
       url: https://github.com/specmatic/specmatic-order-contracts
     provides:
-      - io/specmatic/examples/store/grpc/order_bff.proto
+      - io/specmatic/examples/store/grpc/order_bff/order_bff.proto
     consumes:
       - io/specmatic/examples/store/grpc/order_api/order.proto
       - io/specmatic/examples/store/grpc/order_api/product.proto
