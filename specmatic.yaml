@@ -8,3 +8,7 @@ contracts:
       - io/specmatic/examples/store/grpc/order_api/order.proto
       - io/specmatic/examples/store/grpc/order_api/product.proto
       - io/specmatic/examples/store/asyncapi/kafka.yaml
+      
+report:
+  formatters:
+    - type: ctrf
