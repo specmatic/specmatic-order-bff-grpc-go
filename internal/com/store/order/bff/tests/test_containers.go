@@ -37,6 +37,7 @@ func StartDomainService(env *TestEnvironment) (testcontainers.Container, string,
 		Cmd:          []string{"stub", "--import-path=../"},
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
+			testcontainers.BindMount(filepath.Join(pwd, "./build/reports/specmatic"), "/usr/src/app/build/reports/specmatic"),
 		),
 		Networks: []string{
 			env.DockerNetwork.Name,
