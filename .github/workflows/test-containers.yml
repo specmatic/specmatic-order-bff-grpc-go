@@ -40,3 +40,18 @@ jobs:
 
       - name: start dockerized tests
         run: go test contract_test.go -v -count=1
+
+      - name: Upload CTRF Report
+        uses: actions/upload-artifact@v4
+        if: always() # Run even if tests fail
+        with:
+          name: ctrf-report
+          path: build/reports/specmatic/grpc/ctrf/*.json
+          retention-days: 5
+    
+      # Display CTRF test results
+      - name: Publish Test Results
+        uses: ctrf-io/github-test-reporter@v1
+        if: always() # Run even if tests fail
+        with:
+          report-path: './build/reports/specmatic/grpc/ctrf/*.json'
