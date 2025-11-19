@@ -187,8 +187,12 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 		log.Fatalf("Error getting current directory: %v", err)
 	}
 
+	reportsDir := filepath.Join(pwd, "./build/reports/specmatic")
+	if err := os.MkdirAll(reportsDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create reports directory: %w", err)
+	}
+
 	bffPortInt, err := strconv.Atoi(env.Config.BFFServer.Port)
-	// bffPortInt, err := strconv.Atoi(env.bffServiceDynamicPort)
 	if err != nil {
 		return "", fmt.Errorf("invalid port number: %w", err)
 	}
@@ -201,7 +205,7 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 		Cmd: []string{"test", fmt.Sprintf("--port=%d", bffPortInt), "--host=bff-service", "--import-path=../"},
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
-			testcontainers.BindMount(filepath.Join(pwd, "./build/reports/specmatic"), "/usr/src/app/build/reports/specmatic"),
+			testcontainers.BindMount(reportsDir, "/usr/src/app/build/reports/specmatic"),
 		),
 		Networks: []string{
 			env.DockerNetwork.Name,
