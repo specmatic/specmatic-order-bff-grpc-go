@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/bufbuild/protovalidate-go v0.6.2
 	github.com/docker/go-connections v0.6.0
-	github.com/go-resty/resty/v2 v2.14.0
+	github.com/go-resty/resty/v2 v2.17.0
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go v0.32.0
