@@ -9,7 +9,7 @@ RUN go mod download
 COPY . .
 RUN make all
 
-FROM alpine:3.22
+FROM alpine:3.23
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=builder /app/specmatic-order-bff-grpc-go .
