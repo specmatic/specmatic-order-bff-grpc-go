@@ -11,7 +11,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.32.0
 	github.com/tidwall/gjson v1.17.3
 	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf v1.36.10
 )
 
 require (
