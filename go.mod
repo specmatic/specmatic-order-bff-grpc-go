@@ -7,7 +7,7 @@ require (
 	github.com/docker/go-connections v0.6.0
 	github.com/go-resty/resty/v2 v2.17.0
 	github.com/segmentio/kafka-go v0.4.49
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.32.0
 	github.com/tidwall/gjson v1.17.3
 	google.golang.org/grpc v1.65.0
