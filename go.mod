@@ -3,7 +3,7 @@ module specmatic-order-bff-grpc-go
 go 1.22
 
 require (
-	github.com/bufbuild/protovalidate-go v0.6.2
+	github.com/bufbuild/protovalidate-go v0.14.0
 	github.com/docker/go-connections v0.6.0
 	github.com/go-resty/resty/v2 v2.17.1
 	github.com/segmentio/kafka-go v0.4.50
