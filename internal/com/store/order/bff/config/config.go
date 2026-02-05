@@ -29,7 +29,7 @@ func LoadConfig() (*Config, error) {
 			Port string
 		}{
 			Port: getEnvOrDefault("DOMAIN_SERVER_PORT", "9000"),
-			Host: getEnvOrDefault("DOMAIN_SERVER_HOST", "order-api-mock"),
+			Host: getEnvOrDefault("DOMAIN_SERVER_HOST", "localhost"),
 		},
 		BFFServer: struct {
 			Port string
@@ -42,10 +42,10 @@ func LoadConfig() (*Config, error) {
 			Topic   string
 			ApiPort string
 		}{
-			Port:    getEnvOrDefault("KAFKA_PORT", "9093"),
-			Host:    getEnvOrDefault("KAFKA_HOST", "specmatic-kafka"),
+			Port:    getEnvOrDefault("KAFKA_PORT", "9092"),
+			Host:    getEnvOrDefault("KAFKA_HOST", "localhost"),
 			Topic:   getEnvOrDefault("KAFKA_TOPIC", "product-queries"),
-			ApiPort: getEnvOrDefault("KAFKA_API_PORT", "9094"),
+			ApiPort: getEnvOrDefault("KAFKA_API_PORT", "9999"),
 		},
 	}
 

@@ -24,7 +24,7 @@ git submodule update --init --recursive --remote
 git config submodule.recurse true
 ```
 
-### Contract Testing BFF using specmatic-grpc docker image (preferred) with test containers
+### Contract Testing BFF using specmatic/enterprise docker image (preferred) with test containers
 
 ```shell
 go mod tidy

@@ -22,9 +22,9 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	fmt.Println("port : " + cfg.Backend.Port)
-
 	backendServerAddress := cfg.Backend.Host + ":" + cfg.Backend.Port
+
+	fmt.Println("backend server address: " + backendServerAddress)
 
 	orderServiceAddress := backendServerAddress
 	productServiceAddress := backendServerAddress

@@ -13,10 +13,10 @@ import (
 func TestContract(t *testing.T) {
 	env := setUpEnv(t)
 
-	// setUp (start domain service stub with specmatic-grpc and bff server in container)
+	// setUp (start domain service stub with specmatic/enterprise and bff server in container)
 	setUp(t, env)
 
-	// RUN (run specmatic-grpc test in container)
+	// RUN (run specmatic/enterprise test in container)
 	runTests(t, env)
 
 	// TEAR DOWN
@@ -49,16 +49,10 @@ func setUp(t *testing.T, env *tests.TestEnvironment) {
 	})
 	env.DockerNetwork = newNetwork
 
-	printHeader(t, 1, "Starting Domain Service")
-	env.DomainServiceContainer, env.DomainServiceDynamicPort, err = tests.StartDomainService(env)
+	printHeader(t, 1, "Starting dependencies")
+	env.DomainServiceContainer, env.DomainServiceDynamicPort, err = tests.StartDependencies(env)
 	if err != nil {
-		t.Fatalf("could not start domain service container: %v", err)
-	}
-
-	printHeader(t, 2, "Starting Kafka Service")
-	env.KafkaServiceContainer, env.KafkaServiceDynamicPort, err = tests.StartKafkaMock(env)
-	if err != nil {
-		t.Fatalf("could not start domain service container: %v", err)
+		t.Fatalf("could not start dependencies: %v", err)
 	}
 
 	printHeader(t, 3, "Starting BFF Service")
