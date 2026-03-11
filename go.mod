@@ -8,7 +8,7 @@ require (
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/segmentio/kafka-go v0.4.50
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.40.0
+	github.com/testcontainers/testcontainers-go v0.41.0
 	github.com/tidwall/gjson v1.18.0
 	google.golang.org/grpc v1.79.2
 	google.golang.org/protobuf v1.36.11
