@@ -1,37 +1,75 @@
-version: 2
-contracts:
-  - git:
-      url: https://github.com/specmatic/specmatic-order-contracts
-    provides:
-      - specs:
-        - io/specmatic/examples/store/grpc/order_bff/order_bff.proto
-        specType: openapi
-        config:
-          baseUrl: "{APP_URL:http://localhost:8080}"
-    consumes:
-      - specs:
-        - io/specmatic/examples/store/grpc/order_api/order.proto
-        - io/specmatic/examples/store/grpc/order_api/product.proto
-        specType: protobuf
-        config:
+version: 3
+systemUnderTest:
+  service:
+    $ref: "#/components/services/orderBffGrpcService"
+    runOptions:
+      $ref: "#/components/runOptions/orderBffGrpcServiceTest"
+dependencies:
+  services:
+    - service:
+        $ref: "#/components/services/orderAndProductGrpcService"
+        runOptions:
+          $ref: "#/components/runOptions/orderAndProductGrpcMock"
+    - service:
+        $ref: "#/components/services/kafkaService"
+        runOptions:
+          $ref: "#/components/runOptions/kafkaMock"
+components:
+  sources:
+    specmaticOrderContracts:
+      git:
+        url: https://github.com/specmatic/specmatic-order-contracts.git
+  services:
+    orderBffGrpcService:
+      description: Order BFF gRPC Service
+      definitions:
+        - definition:
+            source:
+              $ref: "#/components/sources/specmaticOrderContracts"
+            specs:
+              - io/specmatic/examples/store/grpc/order_bff/order_bff.proto
+    orderAndProductGrpcService:
+      description: Order and Product GRPC Service
+      definitions:
+        - definition:
+            source:
+              $ref: "#/components/sources/specmaticOrderContracts"
+            specs:
+              - io/specmatic/examples/store/grpc/order_api/order.proto
+              - io/specmatic/examples/store/grpc/order_api/product.proto
+    kafkaService:
+      description: Kafka Service
+      definitions:
+        - definition:
+            source:
+              $ref: "#/components/sources/specmaticOrderContracts"
+            specs:
+              - io/specmatic/examples/store/asyncapi/kafka.yaml
+  runOptions:
+    orderBffGrpcServiceTest:
+      protobuf:
+        type: test
+        host: bff-service
+        port: 8080
+        importPaths:
+          - ../
+        protocVersion: 3.23.4
+        requestTimeout: 5000
+    orderAndProductGrpcMock:
+      protobuf:
+        type: mock
+        host: localhost
+        port: 9090
+        importPaths:
+          - ../
+        protocVersion: 3.23.4
+        requestTimeout: 5000
+    kafkaMock:
+      asyncapi:
+        type: mock
+        inMemoryBroker:
           host: localhost
-          port: 9090
-          importPaths:
-            - ../
-          protocVersion: 3.23.4
-
-      - specs:
-        - io/specmatic/examples/store/asyncapi/kafka.yaml
-        specType: asyncapi
-        config:
-          inMemoryBroker:
-            host: localhost
-            port: 9092
-          servers:
-            - host: localhost:9092
-              protocol: kafka
-
-
-report:
-  formatters:
-    - type: ctrf
+          port: 9092
+        servers:
+          - host: localhost:9092
+            protocol: kafka

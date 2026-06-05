@@ -1,12 +1,16 @@
 package tests
 
 import (
+	"bufio"
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"testing"
 	"time"
@@ -15,7 +19,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/tidwall/gjson"
 )
 
 var specmaticEnterpriseImage = "specmatic/enterprise"
@@ -31,13 +34,28 @@ func StartDependencies(env *TestEnvironment) (testcontainers.Container, string, 
 		return nil, "", fmt.Errorf("invalid port number: %w", err)
 	}
 
+	apiPort, err := nat.NewPort("tcp", env.Config.KafkaService.ApiPort)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid kafka api port: %w", err)
+	}
+
 	req := testcontainers.ContainerRequest{
 		Image:        specmaticEnterpriseImage,
 		Cmd:          []string{"stub", "--import-path=../"},
+		ExposedPorts: []string{
+			env.Config.Backend.Port + "/tcp",
+			env.Config.KafkaService.Port + "/tcp",
+			env.Config.KafkaService.ApiPort + "/tcp",
+		},
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
 		),
-		NetworkMode: "host",
+		Networks: []string{
+			env.DockerNetwork.Name,
+		},
+		NetworkAliases: map[string][]string{
+			env.DockerNetwork.Name: {"backend-service", "kafka-service", "specmatic-kafka"},
+		},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Consumers: []testcontainers.LogConsumer{&testcontainers.StdoutLogConsumer{}},
 		},
@@ -60,15 +78,29 @@ func StartDependencies(env *TestEnvironment) (testcontainers.Container, string, 
 		return nil, "", err
 	}
 
+	mappedApiPort, err := stubContainer.MappedPort(env.Ctx, apiPort)
+	if err != nil {
+		return nil, "", err
+	}
+
+	kafkaExternalPort, err := kafkaExternalPortFromLogs(stubContainer, env.Ctx)
+	if err != nil {
+		return nil, "", err
+	}
+
+	env.Config.Backend.Host = "backend-service"
+	env.Config.KafkaService.Host = "specmatic-kafka"
+	env.Config.KafkaService.Port = kafkaExternalPort
+	env.KafkaAPIHost, err = stubContainer.Host(env.Ctx)
+	if err != nil {
+		return nil, "", err
+	}
+
+	env.KafkaDynamicAPIPort = mappedApiPort.Port()
 	return stubContainer, domainServicePort.Port(), nil
 }
 
 func StartBFFService(t *testing.T, env *TestEnvironment) (testcontainers.Container, string, error) {
-	port, err := nat.NewPort("tcp", env.Config.BFFServer.Port)
-	if err != nil {
-		return nil, "", fmt.Errorf("invalid port number: %w", err)
-	}
-
 	req := testcontainers.ContainerRequest{
 		Name: "specmatic-order-bff-grpc-go",
 		FromDockerfile: testcontainers.FromDockerfile{
@@ -85,10 +117,15 @@ func StartBFFService(t *testing.T, env *TestEnvironment) (testcontainers.Contain
 			"KAFKA_PORT":         env.Config.KafkaService.Port,
 			"KAFKA_HOST":         env.Config.KafkaService.Host,
 		},
+		Networks: []string{
+			env.DockerNetwork.Name,
+		},
+		NetworkAliases: map[string][]string{
+			env.DockerNetwork.Name: {"bff-service"},
+		},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Consumers: []testcontainers.LogConsumer{&testcontainers.StdoutLogConsumer{}},
 		},
-		NetworkMode: "host",
 		WaitingFor:   wait.ForLog("Starting gRPC server"),
 	}
 
@@ -102,12 +139,7 @@ func StartBFFService(t *testing.T, env *TestEnvironment) (testcontainers.Contain
 		return nil, "", err
 	}
 
-	bffPort, err := bffContainer.MappedPort(env.Ctx, port)
-	if err != nil {
-		return nil, "", err
-	}
-
-	return bffContainer, bffPort.Port(), nil
+	return bffContainer, env.Config.BFFServer.Port, nil
 }
 
 func RunTestContainer(env *TestEnvironment) (string, error) {
@@ -171,39 +203,64 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 	return buf.String(), nil
 }
 
-func SetKafkaExpectations(env *TestEnvironment) error {
+func SnapshotKafkaExpectations(env *TestEnvironment) error {
 	client := resty.New()
 
-	body := fmt.Sprintf(`{
-			"expectations": [
-				{ "topic": "product-queries", "count": %d }
-			]
-		}`, env.ExpectedMessageCount)
+	resp, err := client.R().Post(fmt.Sprintf("http://%s:%s/_specmatic/snapshot", env.KafkaAPIHost, env.KafkaDynamicAPIPort))
+	if err != nil {
+		return fmt.Errorf("error capturing Kafka snapshot: %w", err)
+	}
 
-	_, err := client.R().
-		SetHeader("Content-Type", "application/json").
-		SetBody(body).
-		Post(fmt.Sprintf("http://%s:%s/_specmatic/expectations", env.KafkaAPIHost, env.KafkaDynamicAPIPort))
+	if resp.IsError() {
+		return fmt.Errorf("unexpected response capturing Kafka snapshot: %s", resp.Status())
+	}
 
-	return err
+	return nil
+}
+
+func kafkaExternalPortFromLogs(container testcontainers.Container, ctx context.Context) (string, error) {
+	logReader, err := container.Logs(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to read kafka logs: %w", err)
+	}
+	defer logReader.Close()
+
+	scanner := bufio.NewScanner(logReader)
+	externalPortPattern := regexp.MustCompile(`EXTERNAL://specmatic-kafka:(\d+)`)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if matches := externalPortPattern.FindStringSubmatch(line); len(matches) == 2 {
+			return matches[1], nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("failed to scan kafka logs: %w", err)
+	}
+
+	return "", fmt.Errorf("could not determine kafka external port from logs")
 }
 
 func VerifyKafkaExpectations(env *TestEnvironment) error {
 	client := resty.New()
-	resp, err := client.R().
-		SetHeader("Content-Type", "application/json").
-		Get(fmt.Sprintf("http://%s:%s/_specmatic/expectations/verification_status", env.KafkaAPIHost, env.KafkaDynamicAPIPort))
+	resp, err := client.R().Get(fmt.Sprintf("http://%s:%s/_specmatic/verify?channels=product-queries", env.KafkaAPIHost, env.KafkaDynamicAPIPort))
 	if err != nil {
 		return err
 	}
 
-	// Print the response body for debugging
-	fmt.Println("Response body:", string(resp.Body()))
-
-	if !gjson.GetBytes(resp.Body(), "success").Bool() {
-		errors := gjson.GetBytes(resp.Body(), "errors").Array()
-		return fmt.Errorf("Kafka mock verification failed: %v", errors)
+	counts := map[string]int{}
+	if err := json.Unmarshal(resp.Body(), &counts); err != nil {
+		return fmt.Errorf("failed to parse Kafka verification response: %w", err)
 	}
-	fmt.Println("Kafka mock expectations were met successfully.")
+
+	actualCount, ok := counts["product-queries"]
+	if !ok {
+		return fmt.Errorf("Kafka verification response did not include product-queries count: %v", counts)
+	}
+
+	if actualCount != env.ExpectedMessageCount {
+		return fmt.Errorf("Kafka message count mismatch for product-queries: expected %d, got %d", env.ExpectedMessageCount, actualCount)
+	}
+
 	return nil
 }
