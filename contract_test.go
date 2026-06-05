@@ -28,6 +28,7 @@ func setUpEnv(t *testing.T) *tests.TestEnvironment {
 	if err != nil {
 		t.Fatalf("Failed to load config: %v", err)
 	}
+	config.Backend.Port = "9090"
 
 	return &tests.TestEnvironment{
 		Ctx:                  context.Background(),
@@ -55,6 +56,10 @@ func setUp(t *testing.T, env *tests.TestEnvironment) {
 		t.Fatalf("could not start dependencies: %v", err)
 	}
 
+	if err := tests.SnapshotKafkaExpectations(env); err != nil {
+		t.Fatalf("could not snapshot kafka expectations: %v", err)
+	}
+
 	printHeader(t, 3, "Starting BFF Service")
 	env.BffServiceContainer, env.BffServiceDynamicPort, err = tests.StartBFFService(t, env)
 	if err != nil {
@@ -80,14 +85,10 @@ func tearDown(t *testing.T, env *tests.TestEnvironment) {
 			t.Logf("Failed to terminate BFF container: %v", err)
 		}
 	}
-	if env.KafkaServiceContainer != nil {
-		err := tests.VerifyKafkaExpectations(env)
-		if err != nil {
+	if env.KafkaAPIHost != "" {
+		if err := tests.VerifyKafkaExpectations(env); err != nil {
 			t.Logf("Kafka expectations were not met: %s", err)
 			t.Fail()
-		}
-		if err := env.KafkaServiceContainer.Terminate(env.Ctx); err != nil {
-			t.Logf("Failed to terminate Kafka container: %v", err)
 		}
 	}
 	if env.DomainServiceContainer != nil {
