@@ -1,7 +1,14 @@
 name: Build GoLang Project
 
+run-name: ${{ inputs.orchestrator_run_suffix && format('Build GoLang Project - {0}', inputs.orchestrator_run_suffix) || github.workflow }}
+
 on:
   workflow_dispatch:
+    inputs:
+      orchestrator_run_suffix:
+        description: Test orchestrator run suffix
+        required: false
+        type: string
 
 jobs:
   build:
@@ -37,6 +44,15 @@ jobs:
           go mod download
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+
+      # Internal setup required by Specmatic. Sample project users can ignore this block.
+      - if: ${{ inputs.orchestrator_run_suffix != '' }}
+        uses: specmatic/specmatic-github-workflows/action-orchestrator-setup@main
+        with:
+          orchestrator-run-suffix: ${{ inputs.orchestrator_run_suffix }}
+          docker-hub-username: ${{ vars.SPECMATIC_DOCKER_HUB_USERNAME }}
+          docker-hub-token: ${{ secrets.SPECMATIC_DOCKER_HUB_TOKEN }}
+      # End: internal setup required by Specmatic.
 
       - name: start dockerized tests
         run: go test contract_test.go -v -count=1
