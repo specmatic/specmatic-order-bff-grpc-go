@@ -33,7 +33,7 @@ func StartDependencies(env *TestEnvironment) (testcontainers.Container, string, 
 
 	req := testcontainers.ContainerRequest{
 		Image:        specmaticEnterpriseImage,
-		Cmd:          []string{"stub", "--import-path=../"},
+		Cmd:          []string{"mock", "--import-path=../"},
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
 		),
@@ -42,7 +42,7 @@ func StartDependencies(env *TestEnvironment) (testcontainers.Container, string, 
 			Consumers: []testcontainers.LogConsumer{&testcontainers.StdoutLogConsumer{}},
 		},
 		WaitingFor: wait.ForAll(
-			wait.ForLog("Stub server is running"),
+			wait.ForLog("Mock server is running"),
 			wait.ForLog("AsyncMock has started"),
 		).WithStartupTimeout(2 * time.Minute),
 	}
