@@ -203,6 +203,11 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 		return "", fmt.Errorf("failed to create reports directory: %w", err)
 	}
 
+	specmaticHome := filepath.Join(os.Getenv("HOME"), ".specmatic")
+	if err := os.MkdirAll(specmaticHome, 0755); err != nil {
+		return "", fmt.Errorf("failed to create Specmatic config directory: %w", err)
+	}
+
 	bffPortInt, err := strconv.Atoi(env.Config.BFFServer.Port)
 	if err != nil {
 		return "", fmt.Errorf("invalid port number: %w", err)
@@ -218,7 +223,7 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
 			testcontainers.BindMount(reportsDir, "/usr/src/app/build/reports/specmatic"),
-			testcontainers.BindMount(filepath.Join(os.Getenv("HOME"), ".specmatic"), "/root/.specmatic"),
+			testcontainers.BindMount(specmaticHome, "/root/.specmatic"),
 		),
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Consumers: []testcontainers.LogConsumer{&testcontainers.StdoutLogConsumer{}},
