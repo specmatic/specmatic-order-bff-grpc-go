@@ -213,7 +213,6 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 		Env: map[string]string{
 			"SPECMATIC_GENERATIVE_TESTS": "true",
 			"PROTOC_VERSION":             "3.21.12",
-			"SPECMATIC_LICENSE_PATH":     "/root/.specmatic/specmatic-license.txt",
 		},
 		Cmd: []string{"test", fmt.Sprintf("--port=%d", bffPortInt), "--host=bff-service", "--import-path=../"},
 		Mounts: testcontainers.Mounts(
