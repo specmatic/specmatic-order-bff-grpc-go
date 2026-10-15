@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,6 +20,9 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 var specmaticEnterpriseImage = "specmatic/enterprise"
@@ -40,8 +44,8 @@ func StartDependencies(env *TestEnvironment) (testcontainers.Container, string, 
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image:        specmaticEnterpriseImage,
-		Cmd:          []string{"stub", "--import-path=../"},
+		Image: specmaticEnterpriseImage,
+		Cmd:   []string{"stub", "--import-path=../"},
 		ExposedPorts: []string{
 			env.Config.Backend.Port + "/tcp",
 			env.Config.KafkaService.Port + "/tcp",
@@ -123,10 +127,14 @@ func StartBFFService(t *testing.T, env *TestEnvironment) (testcontainers.Contain
 		NetworkAliases: map[string][]string{
 			env.DockerNetwork.Name: {"bff-service"},
 		},
+		ExposedPorts: []string{env.Config.BFFServer.Port + "/tcp"},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Consumers: []testcontainers.LogConsumer{&testcontainers.StdoutLogConsumer{}},
 		},
-		WaitingFor:   wait.ForLog("Starting gRPC server"),
+		WaitingFor: wait.ForAll(
+			wait.ForLog("Starting gRPC server"),
+			wait.ForListeningPort(nat.Port(env.Config.BFFServer.Port+"/tcp")),
+		).WithStartupTimeout(2 * time.Minute),
 	}
 
 	bffContainer, err := testcontainers.GenericContainer(env.Ctx, testcontainers.GenericContainerRequest{
@@ -138,8 +146,50 @@ func StartBFFService(t *testing.T, env *TestEnvironment) (testcontainers.Contain
 	if err != nil {
 		return nil, "", err
 	}
+	if err := waitForBFFHealth(env.Ctx, bffContainer, env.Config.BFFServer.Port); err != nil {
+		_ = bffContainer.Terminate(env.Ctx)
+		return nil, "", err
+	}
 
 	return bffContainer, env.Config.BFFServer.Port, nil
+}
+
+func waitForBFFHealth(ctx context.Context, container testcontainers.Container, port string) error {
+	host, err := container.Host(ctx)
+	if err != nil {
+		return fmt.Errorf("get BFF container host for health check: %w", err)
+	}
+	mappedPort, err := container.MappedPort(ctx, nat.Port(port+"/tcp"))
+	if err != nil {
+		return fmt.Errorf("get mapped BFF port for health check: %w", err)
+	}
+	connection, err := grpc.NewClient(net.JoinHostPort(host, mappedPort.Port()), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return fmt.Errorf("create BFF health check client: %w", err)
+	}
+	defer connection.Close()
+
+	client := healthpb.NewHealthClient(connection)
+	deadline := time.Now().Add(30 * time.Second)
+	var lastErr error
+	var lastStatus healthpb.HealthCheckResponse_ServingStatus
+	for time.Now().Before(deadline) {
+		checkCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		response, checkErr := client.Check(checkCtx, &healthpb.HealthCheckRequest{})
+		cancel()
+		if checkErr == nil && response.GetStatus() == healthpb.HealthCheckResponse_SERVING {
+			return nil
+		}
+		lastErr = checkErr
+		if response != nil {
+			lastStatus = response.GetStatus()
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	if lastErr != nil {
+		return fmt.Errorf("BFF gRPC health check did not become SERVING: %w", lastErr)
+	}
+	return fmt.Errorf("BFF gRPC health check did not become SERVING (last status: %s)", lastStatus)
 }
 
 func RunTestContainer(env *TestEnvironment) (string, error) {
@@ -163,11 +213,13 @@ func RunTestContainer(env *TestEnvironment) (string, error) {
 		Env: map[string]string{
 			"SPECMATIC_GENERATIVE_TESTS": "true",
 			"PROTOC_VERSION":             "3.21.12",
+			"SPECMATIC_LICENSE_PATH":     "/root/.specmatic/specmatic-license.txt",
 		},
 		Cmd: []string{"test", fmt.Sprintf("--port=%d", bffPortInt), "--host=bff-service", "--import-path=../"},
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount(filepath.Join(pwd, "specmatic.yaml"), "/usr/src/app/specmatic.yaml"),
 			testcontainers.BindMount(reportsDir, "/usr/src/app/build/reports/specmatic"),
+			testcontainers.BindMount(filepath.Join(os.Getenv("HOME"), ".specmatic"), "/root/.specmatic"),
 		),
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Consumers: []testcontainers.LogConsumer{&testcontainers.StdoutLogConsumer{}},
