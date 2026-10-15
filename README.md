@@ -26,6 +26,8 @@ git config submodule.recurse true
 
 ### Contract Testing BFF using specmatic/enterprise docker image (preferred) with test containers
 
+The BFF exposes the standard `grpc.health.v1.Health/Check` service. The Testcontainers setup waits for its listening port, startup log, and a `SERVING` health response before starting Specmatic.
+
 ```shell
 go mod tidy
 go test contract_test.go -v -count=1

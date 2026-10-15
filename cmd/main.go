@@ -13,6 +13,8 @@ import (
 	bff_pb "specmatic-order-bff-grpc-go/pkg/api/order_bff"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -46,6 +48,9 @@ func main() {
 	domainAPIService := services.NewDomainAPIService(orderConn, productConn)
 
 	grpcServer := grpc.NewServer()
+	healthServer := health.NewServer()
+	healthpb.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 
 	bffHandler := handlers.NewBffHandler(domainAPIService)
 	bff_pb.RegisterOrderServiceServer(grpcServer, bffHandler)
